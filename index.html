@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Control Panel</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Orbitron', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #00d4ff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            grid-template-rows: 80px 1fr 100px;
+            height: 100vh;
+            gap: 2px;
+            background: #000;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(90deg, #0f3460 0%, #0e4b99 50%, #2e86de 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            border-bottom: 2px solid #00d4ff;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
+            animation: scan 3s infinite;
+        }
+
+        @keyframes scan {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px #00d4ff;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .preview-area {
+            background: #0a0a0a;
+            position: relative;
+            border-right: 2px solid #00d4ff;
+            overflow: hidden;
+        }
+
+        .preview-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #videoPreview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: contrast(1.1) brightness(1.05);
+        }
+
+        .preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #00d4ff;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .preview-overlay.hidden {
+            display: none;
+        }
+
+        .preview-overlay .icon {
+            font-size: 6rem;
+            margin-bottom: 30px;
+            text-shadow: 0 0 20px #00d4ff;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        .preview-overlay h2 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .preview-overlay p {
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+
+        .hud-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            pointer-events: none;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            z-index: 5;
+        }
+
+        .hud-overlay::before,
+        .hud-overlay::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #00d4ff;
+        }
+
+        .hud-overlay::before {
+            top: -3px;
+            left: -3px;
+            border-right: none;
+            border-bottom: none;
+            box-shadow: 0 0 10px #00d4ff;
+        }
+
+        .hud-overlay::after {
+            bottom: -3px;
+            right: -3px;
+            border-left: none;
+            border-top: none;
+            box-shadow: 0 0 10px #00d4ff;
+        }
+
+        .controls-panel {
+            background: linear-gradient(180deg, #0f1419 0%, #1a1a2e 100%);
+            border-left: 2px solid #00d4ff;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: inset 0 0 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .control-section {
+            margin-bottom: 30px;
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .control-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+        }
+
+        .control-section h3 {
+            color: #00d4ff;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 5px #00d4ff;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-indicator.offline {
+            border-color: #ff4757;
+            color: #ff4757;
+            box-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
+        }
+
+        .status-indicator.online {
+            border-color: #00d4ff;
+            color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #0f3460, #2e86de);
+            color: #00d4ff;
+            border: 2px solid #00d4ff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.danger {
+            background: linear-gradient(135deg, #2c1810, #ff4757);
+            border-color: #ff4757;
+            color: #ff4757;
+        }
+
+        .btn.danger:hover {
+            box-shadow: 0 0 20px rgba(255, 71, 87, 0.5);
+        }
+
+        .btn:disabled {
+            background: #333;
+            border-color: #555;
+            color: #666;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn:disabled:hover {
+            transform: none;
+        }
+
+        .form-control {
+            margin-bottom: 15px;
+        }
+
+        .form-control label {
+            display: block;
+            margin-bottom: 8px;
+            color: #00d4ff;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-control select,
+        .form-control input[type="range"] {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            color: #00d4ff;
+            font-family: 'Orbitron', monospace;
+            padding: 10px;
+            font-size: 0.9rem;
+        }
+
+        .form-control select:focus,
+        .form-control input:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            height: 6px;
+            background: rgba(0, 212, 255, 0.2);
+            border-radius: 3px;
+            padding: 0;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            border: 2px solid #0a0a0a;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            border: 2px solid #0a0a0a;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .bottom-controls {
+            grid-column: 1 / -1;
+            background: linear-gradient(90deg, #0f1419 0%, #1a1a2e 100%);
+            border-top: 2px solid #00d4ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+        }
+
+        .capture-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #00d4ff, #0f3460);
+            border: 4px solid #00d4ff;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+            position: relative;
+        }
+
+        .capture-btn::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid #00d4ff;
+            animation: ripple 2s infinite;
+        }
+
+        @keyframes ripple {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        .capture-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.8);
+        }
+
+        .capture-btn:disabled {
+            background: #333;
+            border-color: #555;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .capture-btn:disabled::before {
+            display: none;
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 8px;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .photo-thumbnail {
+            width: 60px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .photo-thumbnail:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        .value-display {
+            color: #00d4ff;
+            font-weight: 700;
+            text-shadow: 0 0 5px #00d4ff;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: 60px 1fr 300px 80px;
+            }
+            
+            .controls-panel {
+                border-left: none;
+                border-top: 2px solid #00d4ff;
+                max-height: 300px;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 0px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 212, 255, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="main-grid">
+        <div class="header">
+            <h1>Neural Camera Interface</h1>
+            <div class="system-status">
+                <div class="status-indicator offline" id="statusIndicator">
+                    <div class="status-dot"></div>
+                    <span id="statusText">System Offline</span>
+                </div>
+                <div style="font-size: 0.8rem; opacity: 0.7;">
+                    <span id="currentTime"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="preview-area">
+            <div class="preview-container">
+                <video id="videoPreview" autoplay muted playsinline></video>
+                <div class="preview-overlay" id="previewOverlay">
+                    <div class="icon">🎯</div>
+                    <h2>Neural Vision System</h2>
+                    <p>Initialize camera matrix to begin surveillance</p>
+                </div>
+                <div class="hud-overlay"></div>
+            </div>
+        </div>
+
+        <div class="controls-panel">
+            <div class="control-section">
+                <h3>System Control</h3>
+                <button class="btn" id="startBtn">
+                    <span>⚡</span>
+                    Initialize System
+                </button>
+                <button class="btn danger" id="stopBtn" disabled>
+                    <span>🔴</span>
+                    Shutdown System
+                </button>
+            </div>
+
+            <div class="control-section">
+                <h3>Device Matrix</h3>
+                <div class="form-control">
+                    <label for="cameraSelect">Neural Input Device</label>
+                    <select id="cameraSelect">
+                        <option value="">Select Neural Interface...</option>
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label for="resolutionSelect">Resolution Matrix</label>
+                    <select id="resolutionSelect">
+                        <option value="640x480">640 × 480 (Basic)</option>
+                        <option value="1280x720" selected>1280 × 720 (Enhanced)</option>
+                        <option value="1920x1080">1920 × 1080 (Superior)</option>
+                        <option value="3840x2160">3840 × 2160 (Neural)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Visual Enhancement</h3>
+                <div class="form-control">
+                    <label for="brightnessSlider">Luminance: <span class="value-display" id="brightnessValue">100</span>%</label>
+                    <input type="range" id="brightnessSlider" class="slider" min="50" max="150" value="100">
+                </div>
+                <div class="form-control">
+                    <label for="contrastSlider">Contrast: <span class="value-display" id="contrastValue">100</span>%</label>
+                    <input type="range" id="contrastSlider" class="slider" min="50" max="150" value="100">
+                </div>
+                <div class="form-control">
+                    <label for="saturationSlider">Saturation: <span class="value-display" id="saturationValue">100</span>%</label>
+                    <input type="range" id="saturationSlider" class="slider" min="0" max="200" value="100">
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Data Operations</h3>
+                <button class="btn" id="downloadBtn" disabled>
+                    <span>💾</span>
+                    Download Neural Data
+                </button>
+                <button class="btn" id="fullscreenBtn">
+                    <span>🔍</span>
+                    Expand Matrix View
+                </button>
+            </div>
+
+            <div class="control-section">
+                <h3>Captured Data</h3>
+                <div class="photo-grid" id="photoGrid">
+                    <!-- Captured photos will appear here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-controls">
+            <button class="btn" id="settingsBtn">
+                <span>⚙️</span>
+                Neural Settings
+            </button>
+            <button class="capture-btn" id="captureBtn" disabled>
+                📸
+            </button>
+            <button class="btn" id="analysisBtn">
+                <span>🧠</span>
+                Data Analysis
+            </button>
+        </div>
+    </div>
+
+    <script>
+        class NeuralCameraInterface {
+            constructor() {
+                this.stream = null;
+                this.video = document.getElementById('videoPreview');
+                this.canvas = document.createElement('canvas');
+                this.capturedPhotos = [];
+                this.currentDeviceId = null;
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.loadCameraDevices();
+                this.updateTime();
+                setInterval(() => this.updateTime(), 1000);
+            }
+
+            initializeElements() {
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.captureBtn = document.getElementById('captureBtn');
+                this.statusIndicator = document.getElementById('statusIndicator');
+                this.statusText = document.getElementById('statusText');
+                this.previewOverlay = document.getElementById('previewOverlay');
+                this.cameraSelect = document.getElementById('cameraSelect');
+                this.resolutionSelect = document.getElementById('resolutionSelect');
+                this.photoGrid = document.getElementById('photoGrid');
+                this.downloadBtn = document.getElementById('downloadBtn');
+                this.fullscreenBtn = document.getElementById('fullscreenBtn');
+                this.currentTime = document.getElementById('currentTime');
+                
+                // Image control sliders
+                this.brightnessSlider = document.getElementById('brightnessSlider');
+                this.contrastSlider = document.getElementById('contrastSlider');
+                this.saturationSlider = document.getElementById('saturationSlider');
+                this.brightnessValue = document.getElementById('brightnessValue');
+                this.contrastValue = document.getElementById('contrastValue');
+                this.saturationValue = document.getElementById('saturationValue');
+            }
+
+            setupEventListeners() {
+                this.startBtn.addEventListener('click', () => this.startCamera());
+                this.stopBtn.addEventListener('click', () => this.stopCamera());
+                this.captureBtn.addEventListener('click', () => this.capturePhoto());
+                this.downloadBtn.addEventListener('click', () => this.downloadLastPhoto());
+                this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+                
+                this.cameraSelect.addEventListener('change', (e) => {
+                    if (this.stream) {
+                        this.currentDeviceId = e.target.value;
+                        this.restartCamera();
+                    }
+                });
+
+                this.resolutionSelect.addEventListener('change', () => {
+                    if (this.stream) {
+                        this.restartCamera();
+                    }
+                });
+
+                // Image control sliders
+                this.brightnessSlider.addEventListener('input', (e) => {
+                    this.brightnessValue.textContent = e.target.value;
+                    this.updateVideoFilters();
+                });
+
+                this.contrastSlider.addEventListener('input', (e) => {
+                    this.contrastValue.textContent = e.target.value;
+                    this.updateVideoFilters();
+                });
+
+                this.saturationSlider.addEventListener('input', (e) => {
+                    this.saturationValue.textContent = e.target.value;
+                    this.updateVideoFilters();
+                });
+            }
+
+            updateTime() {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('en-US', { 
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                this.currentTime.textContent = timeString;
+            }
+
+            async loadCameraDevices() {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    
+                    this.cameraSelect.innerHTML = '<option value="">Select Neural Interface...</option>';
+                    videoDevices.forEach((device, index) => {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.textContent = device.label || `Neural Interface ${index + 1}`;
+                        this.cameraSelect.appendChild(option);
+                    });
+
+                    if (videoDevices.length > 0) {
+                        this.cameraSelect.value = videoDevices[0].deviceId;
+                        this.currentDeviceId = videoDevices[0].deviceId;
+                    }
+                } catch (error) {
+                    console.error('Error loading neural interfaces:', error);
+                }
+            }
+
+            getConstraints() {
+                const resolution = this.resolutionSelect.value.split('x');
+                const constraints = {
+                    video: {
+                        width: { ideal: parseInt(resolution[0]) },
+                        height: { ideal: parseInt(resolution[1]) }
+                    },
+                    audio: false
+                };
+
+                if (this.currentDeviceId) {
+                    constraints.video.deviceId = { exact: this.currentDeviceId };
+                }
+
+                return constraints;
+            }
+
+            async startCamera() {
+                try {
+                    this.stream = await navigator.mediaDevices.getUserMedia(this.getConstraints());
+                    this.video.srcObject = this.stream;
+                    
+                    this.updateStatus('online', 'Neural System Online');
+                    this.previewOverlay.classList.add('hidden');
+                    
+                    this.startBtn.disabled = true;
+                    this.stopBtn.disabled = false;
+                    this.captureBtn.disabled = false;
+                    
+                    // Reload devices with labels now that we have permission
+                    await this.loadCameraDevices();
+                } catch (error) {
+                    console.error('Error initializing neural system:', error);
+                    this.updateStatus('offline', 'Neural System Error');
+                    alert('Unable to access neural interface. Please check permissions.');
+                }
+            }
+
+            stopCamera() {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                    this.video.srcObject = null;
+                }
+                
+                this.updateStatus('offline', 'Neural System Offline');
+                this.previewOverlay.classList.remove('hidden');
+                
+                this.startBtn.disabled = false;
+                this.stopBtn.disabled = true;
+                this.captureBtn.disabled = true;
+            }
+
+            async restartCamera() {
+                this.stopCamera();
+                await new Promise(resolve => setTimeout(resolve, 100));
+                this.startCamera();
+            }
+
+            capturePhoto() {
+                if (!this.stream) return;
+
+                this.canvas.width = this.video.videoWidth;
+                this.canvas.height = this.video.videoHeight;
+                
+                const ctx = this.canvas.getContext('2d');
+                ctx.filter = this.video.style.filter;
+                ctx.drawImage(this.video, 0, 0);
+                
+                this.canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const timestamp = new Date().toLocaleString();
+                    
+                    this.capturedPhotos.push({
+                        url: url,
+                        blob: blob,
+                        timestamp: timestamp
+                    });
+                    
+                    this.addPhotoToGrid(url, timestamp);
+                    this.downloadBtn.disabled = false;
+                    
+                    // Neural flash effect
+                    this.video.style.filter = 'brightness(200%) saturate(150%) hue-rotate(180deg)';
+                    setTimeout(() => {
+                        this.updateVideoFilters();
+                    }, 150);
+                }, 'image/jpeg', 0.9);
+            }
+
+            addPhotoToGrid(url, timestamp) {
+                const img = document.createElement('img');
+                img.src = url;
+                img.className = 'photo-thumbnail';
+                img.title = `Neural Data Captured: ${timestamp}`;
+                img.addEventListener('click', () => {
+                    window.open(url, '_blank');
+                });
+                
+                this.photoGrid.appendChild(img);
+            }
+
+            downloadLastPhoto() {
+                if (this.capturedPhotos.length === 0) return;
+                
+                const lastPhoto = this.capturedPhotos[this.capturedPhotos.length - 1];
+                const link = document.createElement('a');
+                link.href = lastPhoto.url;
+                link.download = `neural-capture-${Date.now()}.jpg`;
+                link.click();
+            }
+
+            toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    this.video.requestFullscreen().catch(err => {
+                        console.error('Error entering neural matrix view:', err);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+
+            updateVideoFilters() {
+                const brightness = this.brightnessSlider.value;
+                const contrast = this.contrastSlider.value;
+                const saturation = this.saturationSlider.value;
+                
+                this.video.style.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+            }
+
+            updateStatus(status, text) {
+                this.statusIndicator.className = `status-indicator ${status}`;
+                this.statusText.textContent = text;
+            }
+        }
+
+        // Initialize the neural camera interface when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new NeuralCameraInterface();
+        });
+    </script>
+</body>
+</html>
