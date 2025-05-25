@@ -1,4 +1,8 @@
 # CameraInterface
+
+<img style="padding-top: 0;" width="96" align="right" src="https://github.com/user-attachments/assets/a2bee92b-16d0-43fa-ba01-30ee9cfa315a" alt="ICON">
+
+
 Camera control script with futuristic design :)
 
 # Screenshots
